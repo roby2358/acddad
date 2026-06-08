@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.LocalContentColor
@@ -20,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -36,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.acd.speech.SpeakState
 import com.example.acd.speech.rememberSpeaker
+import com.example.acd.tally.rememberWordMemory
 import com.example.acd.text.Phrase
 import com.example.acd.ui.theme.AcdTheme
 
@@ -53,6 +56,27 @@ private fun wordKey(word: String): Key = Key(word) { it.appendWord(word) }
 private val DIGIT_KEYS: List<Key> = ('0'..'9').map(::charKey)
 private val LETTER_KEYS: List<Key> = ('A'..'Z').map(::charKey)
 private val WORD_KEYS: List<Key> = listOf(wordKey("YES"), wordKey("NO"))
+
+private const val WORDS_PER_ROW = 4
+private const val LEARNED_SLOTS = 2 * WORDS_PER_ROW
+private const val LEARNED_REMOVE_TAPS = 5
+private val BAR_WIDTH = 88.dp
+
+/** Fixed words-panel vocabulary (3 rows): common hospital communication-board needs. */
+private val FIXED_WORDS = listOf(
+    "help", "pain", "water", "bathroom",
+    "more", "less", "medicine", "blanket",
+    "hungry", "cold", "hot", "tired",
+)
+private val WORD_PANEL_KEYS: List<Key> = FIXED_WORDS.map(::wordKey)
+
+/** Words already shown as fixed keys (here, plus YES/NO on the alphabet panel); kept off the learned rows. */
+private val SCREEN_WORDS: Set<String> = (FIXED_WORDS + listOf("yes", "no")).map { it.lowercase() }.toSet()
+
+/** The selectable panels; the switcher bar cycles to the next one. */
+private enum class Panel { ALPHABET, WORDS }
+
+private fun Panel.next(): Panel = Panel.entries[(ordinal + 1) % Panel.entries.size]
 
 private fun phraseSaver(): Saver<Phrase, String> = Saver(
     save = { it.text },
@@ -79,7 +103,37 @@ private fun <T> padRowEnd(items: List<T>, width: Int): List<T?> {
 @Composable
 fun AlphabetScreen(modifier: Modifier) {
     var phrase by rememberSaveable(stateSaver = phraseSaver()) { mutableStateOf(Phrase.EMPTY) }
+    var panel by rememberSaveable { mutableStateOf(Panel.ALPHABET) }
     val speaker = rememberSpeaker()
+    val memory = rememberWordMemory()
+
+    // Tapping the same learned word LEARNED_REMOVE_TAPS times in a row forgets it; any other action resets.
+    var streakWord by remember { mutableStateOf<String?>(null) }
+    var streakCount by remember { mutableStateOf(0) }
+    val resetStreak = { streakWord = null; streakCount = 0 }
+
+    val onKey: (KeyAction) -> Unit = { action ->
+        resetStreak()
+        phrase = action(phrase)
+    }
+    val onBackspace = { onKey(Phrase::backspace) }
+    val onClearWord = { onKey(Phrase::clearWord) }
+    val onClear = { onKey(Phrase::cleared) }
+    val onSpace = {
+        resetStreak()
+        val spaced = phrase.space()
+        if (spaced !== phrase) memory.recordWord(phrase.lastWord())
+        phrase = spaced
+    }
+    val onLearnedWord: (String) -> Unit = { word ->
+        streakCount = if (word == streakWord) streakCount + 1 else 1
+        streakWord = word
+        phrase = phrase.appendWord(word)
+        if (streakCount >= LEARNED_REMOVE_TAPS) {
+            memory.forget(word)
+            resetStreak()
+        }
+    }
 
     Column(
         modifier = modifier.fillMaxSize().padding(GAP),
@@ -92,18 +146,43 @@ fun AlphabetScreen(modifier: Modifier) {
             WordDisplay(text = phrase.text, modifier = Modifier.weight(1f).fillMaxHeight())
             SpeakButton(
                 state = speaker.state,
-                onSpeak = { speaker.speak(phrase.text) },
+                onSpeak = {
+                    resetStreak()
+                    speaker.speak(phrase.text)
+                    val spoken = phrase.words()
+                    if (spoken.isNotEmpty()) memory.recordLine(spoken)
+                },
                 modifier = Modifier.fillMaxHeight().aspectRatio(1f),
             )
         }
-        Keyboard(
-            onKey = { action -> phrase = action(phrase) },
-            onSpace = { phrase = phrase.space() },
-            onBackspace = { phrase = phrase.backspace() },
-            onClearWord = { phrase = phrase.clearWord() },
-            onClear = { phrase = phrase.cleared() },
+        Row(
             modifier = Modifier.fillMaxWidth().weight(4f),
-        )
+            horizontalArrangement = Arrangement.spacedBy(GAP),
+        ) {
+            val panelModifier = Modifier.weight(1f).fillMaxHeight()
+            when (panel) {
+                Panel.ALPHABET -> Keyboard(
+                    onKey = onKey,
+                    onSpace = onSpace,
+                    onBackspace = onBackspace,
+                    onClearWord = onClearWord,
+                    onClear = onClear,
+                    modifier = panelModifier,
+                )
+                Panel.WORDS -> WordsPanel(
+                    onKey = onKey,
+                    onLearnedWord = onLearnedWord,
+                    onClearWord = onClearWord,
+                    onClear = onClear,
+                    learnedWords = memory.top(LEARNED_SLOTS, SCREEN_WORDS),
+                    modifier = panelModifier,
+                )
+            }
+            SwitcherBar(
+                onClick = { resetStreak(); panel = panel.next() },
+                modifier = Modifier.fillMaxHeight().width(BAR_WIDTH),
+            )
+        }
     }
 }
 
@@ -186,6 +265,62 @@ private fun DrawScope.drawClock(color: Color) {
 /** A single thick dot, shown when TTS failed to initialise. */
 private fun DrawScope.drawDot(color: Color) {
     drawCircle(color = color, radius = size.minDimension * 0.22f, center = center)
+}
+
+/** Unlabeled vertical bar left of the keys; tapping it switches to the next panel. */
+@Composable
+private fun SwitcherBar(onClick: () -> Unit, modifier: Modifier) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(GAP),
+        color = MaterialTheme.colorScheme.primary,
+    ) {}
+}
+
+/**
+ * A clear-word/clear control row, then the fixed hospital words, then two rows of [learnedWords]
+ * (the most-used words, padded with blanks). Each word inserts via [Phrase.appendWord].
+ */
+@Composable
+private fun WordsPanel(
+    onKey: (KeyAction) -> Unit,
+    onLearnedWord: (String) -> Unit,
+    onClearWord: () -> Unit,
+    onClear: () -> Unit,
+    learnedWords: List<String>,
+    modifier: Modifier,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(GAP)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(GAP),
+        ) {
+            KeyButton("clear word", onClearWord, Modifier.weight(3f).fillMaxHeight())
+            KeyButton("clear", onClear, Modifier.weight(1f).fillMaxHeight())
+        }
+        WORD_PANEL_KEYS.chunked(WORDS_PER_ROW).forEach { row ->
+            KeyRow(padRowEnd(row, WORDS_PER_ROW), onKey, Modifier.fillMaxWidth().weight(1f))
+        }
+        val learnedSlots: List<String?> = List(LEARNED_SLOTS) { i -> learnedWords.getOrNull(i) }
+        learnedSlots.chunked(WORDS_PER_ROW).forEach { row ->
+            LearnedRow(row, onLearnedWord, Modifier.fillMaxWidth().weight(1f))
+        }
+    }
+}
+
+/** A row of learned-word keys; each reports the raw word so the screen can track the remove-streak. */
+@Composable
+private fun LearnedRow(words: List<String?>, onLearnedWord: (String) -> Unit, modifier: Modifier) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(GAP)) {
+        words.forEach { word ->
+            if (word == null) {
+                Spacer(Modifier.weight(1f).fillMaxHeight())
+            } else {
+                KeyButton(word, { onLearnedWord(word) }, Modifier.weight(1f).fillMaxHeight())
+            }
+        }
+    }
 }
 
 @Composable

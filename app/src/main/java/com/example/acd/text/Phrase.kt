@@ -39,6 +39,12 @@ data class Phrase(val text: String) {
 
     fun cleared(): Phrase = Phrase("")
 
+    /** The whitespace-separated words, with blanks dropped — used when tallying a spoken line. */
+    fun words(): List<String> = text.split(' ').filter { it.isNotBlank() }
+
+    /** The last completed word, or "" when there is none. */
+    fun lastWord(): String = words().lastOrNull() ?: ""
+
     companion object {
         val EMPTY = Phrase("")
     }

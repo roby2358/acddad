@@ -85,4 +85,29 @@ class PhraseTest {
     fun cleared_isEmpty() {
         assertEquals("", Phrase("HELLO").cleared().text)
     }
+
+    @Test
+    fun words_splitsOnSpacesAndDropsBlanks() {
+        assertEquals(listOf("I", "WANT", "WATER"), Phrase("I WANT WATER").words())
+    }
+
+    @Test
+    fun words_onEmpty_isEmptyList() {
+        assertEquals(emptyList<String>(), Phrase.EMPTY.words())
+    }
+
+    @Test
+    fun lastWord_returnsFinalWord() {
+        assertEquals("WANT", Phrase("I WANT").lastWord())
+    }
+
+    @Test
+    fun lastWord_ignoresTrailingSpace() {
+        assertEquals("HI", Phrase("HI ").lastWord())
+    }
+
+    @Test
+    fun lastWord_onEmpty_isBlank() {
+        assertEquals("", Phrase.EMPTY.lastWord())
+    }
 }
