@@ -221,7 +221,8 @@ private fun WordDisplay(text: String, modifier: Modifier) {
         shape = RoundedCornerShape(GAP),
     ) {
         Text(
-            text = text,
+            // Trailing "_" is a display-only end-of-line cursor; it stays out of the spoken/tallied text.
+            text = "${text}_",
             modifier = Modifier.padding(16.dp),
             fontSize = 44.sp,
             fontWeight = FontWeight.Medium,
