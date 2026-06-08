@@ -49,6 +49,9 @@ import com.example.acd.ui.theme.AcdTheme
 private const val KEYS_PER_ROW = 7
 private val GAP = 8.dp
 
+private val KEY_FONT = 40.sp       // multi-character labels (words, control keys)
+private val BIG_KEY_FONT = 60.sp   // single-character keys (letters, digits)
+
 private typealias KeyAction = (Phrase) -> Phrase
 
 /**
@@ -194,6 +197,8 @@ fun AlphabetScreen(modifier: Modifier) {
                 Panel.WORDS -> WordsPanel(
                     onKeyPress = onKeyPress,
                     onLearnedWord = onLearnedWord,
+                    onSpace = onSpace,
+                    onBackspace = onBackspace,
                     onClearWord = onClearWord,
                     onClear = onClear,
                     learnedWords = memory.top(LEARNED_SLOTS, SCREEN_WORDS),
@@ -225,7 +230,7 @@ private fun WordDisplay(text: String, modifier: Modifier) {
             text = "${text}_",
             modifier = Modifier.padding(16.dp),
             fontSize = 44.sp,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.Bold,
         )
     }
 }
@@ -339,26 +344,22 @@ private fun SwitcherBar(onClick: () -> Unit, modifier: Modifier) {
 }
 
 /**
- * A clear-word/clear control row, then the fixed hospital words, then two rows of [learnedWords]
- * (the most-used words, padded with blanks). Each word inserts via [Phrase.appendWord].
+ * The shared control row (same as the alphabet panel), then the fixed hospital words, then two rows
+ * of [learnedWords] (the most-used words, padded with blanks). Each word inserts via [Phrase.appendWord].
  */
 @Composable
 private fun WordsPanel(
     onKeyPress: (Key) -> Unit,
     onLearnedWord: (String) -> Unit,
+    onSpace: () -> Unit,
+    onBackspace: () -> Unit,
     onClearWord: () -> Unit,
     onClear: () -> Unit,
     learnedWords: List<String>,
     modifier: Modifier,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(GAP)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(GAP),
-        ) {
-            KeyButton("clear word", onClearWord, Modifier.weight(3f).fillMaxHeight())
-            KeyButton("clear", onClear, Modifier.weight(1f).fillMaxHeight())
-        }
+        ControlRow(onSpace, onBackspace, onClearWord, onClear, Modifier.fillMaxWidth().weight(1f))
         WORD_PANEL_KEYS.chunked(WORDS_PER_ROW).forEach { row ->
             KeyRow(padRowEnd(row, WORDS_PER_ROW), onKeyPress, Modifier.fillMaxWidth().weight(1f))
         }
@@ -432,8 +433,9 @@ private fun ControlRow(
 
 @Composable
 private fun KeyButton(label: String, onClick: () -> Unit, modifier: Modifier) {
+    val fontSize = if (label.length == 1) BIG_KEY_FONT else KEY_FONT
     Button(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(GAP)) {
-        Text(text = label, fontSize = 28.sp, fontWeight = FontWeight.Medium)
+        Text(text = label, fontSize = fontSize, fontWeight = FontWeight.Bold)
     }
 }
 
