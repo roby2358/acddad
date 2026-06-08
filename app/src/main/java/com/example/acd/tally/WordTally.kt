@@ -19,16 +19,18 @@ data class WordTally(val counts: Map<String, Int>) {
 
     fun recordAll(words: List<String>): WordTally = words.fold(this) { tally, word -> tally.record(word) }
 
-    /**
-     * The [n] most-frequent words, highest count first (ties broken alphabetically), skipping any
-     * word in [excluding] — used to keep words already shown as fixed keys off the learned rows.
-     */
-    fun top(n: Int, excluding: Set<String>): List<String> =
+    /** Every word paired with its count, highest count first, ties broken alphabetically. */
+    fun ranked(): List<Pair<String, Int>> =
         counts.entries
             .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
-            .map { it.key }
-            .filterNot { it in excluding }
-            .take(n)
+            .map { it.key to it.value }
+
+    /**
+     * The [n] most-frequent words, highest count first, skipping any word in [excluding] — used to
+     * keep words already shown as fixed keys off the learned rows.
+     */
+    fun top(n: Int, excluding: Set<String>): List<String> =
+        ranked().map { it.first }.filterNot { it in excluding }.take(n)
 
     fun without(word: String): WordTally = WordTally(counts - word.trim().lowercase())
 

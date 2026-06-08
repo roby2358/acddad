@@ -35,6 +35,9 @@ class WordMemory(context: Context) {
     /** Drop a word from the tally entirely (it can be re-learned by later use). */
     fun forget(word: String) = update(tally.without(word))
 
+    /** Wipe the whole tally. */
+    fun clearAll() = update(WordTally.EMPTY)
+
     fun top(n: Int, excluding: Set<String>): List<String> = tally.top(n, excluding)
 
     private fun update(next: WordTally) {

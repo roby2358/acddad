@@ -54,6 +54,12 @@ class WordTallyTest {
     }
 
     @Test
+    fun ranked_ordersAllByCountThenName() {
+        val tally = WordTally(mapOf("water" to 5, "help" to 5, "cup" to 1))
+        assertEquals(listOf("help" to 5, "water" to 5, "cup" to 1), tally.ranked())
+    }
+
+    @Test
     fun without_removesTheWord() {
         val tally = WordTally(mapOf("water" to 3, "help" to 1))
         assertEquals(mapOf("help" to 1), tally.without("WATER").counts)

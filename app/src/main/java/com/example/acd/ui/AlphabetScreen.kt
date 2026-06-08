@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.LocalContentColor
@@ -32,7 +34,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,10 +77,17 @@ private val WORD_PANEL_KEYS: List<Key> = FIXED_WORDS.map(::wordKey)
 /** Words already shown as fixed keys (here, plus YES/NO on the alphabet panel); kept off the learned rows. */
 private val SCREEN_WORDS: Set<String> = (FIXED_WORDS + listOf("yes", "no")).map { it.lowercase() }.toSet()
 
-/** The selectable panels; the switcher bar cycles to the next one. */
-private enum class Panel { ALPHABET, WORDS }
+/** Visible panels cycle via the switcher; DIAGNOSTIC is hidden, reached only by [DIAGNOSTIC_TRIGGER]. */
+private enum class Panel { ALPHABET, WORDS, DIAGNOSTIC }
 
-private fun Panel.next(): Panel = Panel.entries[(ordinal + 1) % Panel.entries.size]
+private fun Panel.next(): Panel = when (this) {
+    Panel.ALPHABET -> Panel.WORDS
+    Panel.WORDS -> Panel.ALPHABET
+    Panel.DIAGNOSTIC -> Panel.ALPHABET
+}
+
+/** Typing this (5 U's in a row) reveals the hidden diagnostic panel. */
+private const val DIAGNOSTIC_TRIGGER = "UUUUU"
 
 private fun phraseSaver(): Saver<Phrase, String> = Saver(
     save = { it.text },
@@ -114,7 +125,9 @@ fun AlphabetScreen(modifier: Modifier) {
 
     val onKey: (KeyAction) -> Unit = { action ->
         resetStreak()
-        phrase = action(phrase)
+        val next = action(phrase)
+        phrase = next
+        if (next.text.endsWith(DIAGNOSTIC_TRIGGER)) panel = Panel.DIAGNOSTIC
     }
     val onBackspace = { onKey(Phrase::backspace) }
     val onClearWord = { onKey(Phrase::clearWord) }
@@ -175,6 +188,11 @@ fun AlphabetScreen(modifier: Modifier) {
                     onClearWord = onClearWord,
                     onClear = onClear,
                     learnedWords = memory.top(LEARNED_SLOTS, SCREEN_WORDS),
+                    modifier = panelModifier,
+                )
+                Panel.DIAGNOSTIC -> DiagnosticPanel(
+                    entries = memory.tally.ranked(),
+                    onClearAll = { memory.clearAll() },
                     modifier = panelModifier,
                 )
             }
@@ -265,6 +283,38 @@ private fun DrawScope.drawClock(color: Color) {
 /** A single thick dot, shown when TTS failed to initialise. */
 private fun DrawScope.drawDot(color: Color) {
     drawCircle(color = color, radius = size.minDimension * 0.22f, center = center)
+}
+
+/**
+ * Hidden diagnostic view: a "clear all" button above a scrollable, aligned count + word list
+ * of the entire tally.
+ */
+@Composable
+private fun DiagnosticPanel(entries: List<Pair<String, Int>>, onClearAll: () -> Unit, modifier: Modifier) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(GAP)) {
+        Button(
+            onClick = onClearAll,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(GAP),
+        ) {
+            Text(text = "Clear all", fontSize = 22.sp)
+        }
+        LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(GAP)) {
+            items(entries) { (word, count) ->
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Text(
+                        text = count.toString(),
+                        modifier = Modifier.width(64.dp),
+                        textAlign = TextAlign.End,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 22.sp,
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Text(text = word, fontFamily = FontFamily.Monospace, fontSize = 22.sp)
+                }
+            }
+        }
+    }
 }
 
 /** Unlabeled vertical bar left of the keys; tapping it switches to the next panel. */
