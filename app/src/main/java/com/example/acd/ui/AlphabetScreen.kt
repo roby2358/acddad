@@ -1,15 +1,19 @@
 package com.example.acd.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -20,10 +24,18 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.acd.speech.SpeakState
+import com.example.acd.speech.rememberSpeaker
 import com.example.acd.text.Phrase
 import com.example.acd.ui.theme.AcdTheme
 
@@ -67,12 +79,23 @@ private fun <T> padRowEnd(items: List<T>, width: Int): List<T?> {
 @Composable
 fun AlphabetScreen(modifier: Modifier) {
     var phrase by rememberSaveable(stateSaver = phraseSaver()) { mutableStateOf(Phrase.EMPTY) }
+    val speaker = rememberSpeaker()
 
     Column(
         modifier = modifier.fillMaxSize().padding(GAP),
         verticalArrangement = Arrangement.spacedBy(GAP),
     ) {
-        WordDisplay(text = phrase.text, modifier = Modifier.fillMaxWidth().weight(1f))
+        Row(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(GAP),
+        ) {
+            WordDisplay(text = phrase.text, modifier = Modifier.weight(1f).fillMaxHeight())
+            SpeakButton(
+                state = speaker.state,
+                onSpeak = { speaker.speak(phrase.text) },
+                modifier = Modifier.fillMaxHeight().aspectRatio(1f),
+            )
+        }
         Keyboard(
             onKey = { action -> phrase = action(phrase) },
             onSpace = { phrase = phrase.space() },
@@ -98,6 +121,71 @@ private fun WordDisplay(text: String, modifier: Modifier) {
             fontWeight = FontWeight.Medium,
         )
     }
+}
+
+/**
+ * Square button that speaks the current phrase. Enabled (and showing a speaker glyph) only
+ * when TTS is ready; otherwise greyed out, showing a clock while loading or a dot on error.
+ */
+@Composable
+private fun SpeakButton(state: SpeakState, onSpeak: () -> Unit, modifier: Modifier) {
+    Button(
+        onClick = onSpeak,
+        enabled = state == SpeakState.READY,
+        modifier = modifier,
+        shape = RoundedCornerShape(GAP),
+        contentPadding = PaddingValues(GAP),
+    ) {
+        SpeakIcon(state = state, modifier = Modifier.fillMaxSize())
+    }
+}
+
+@Composable
+private fun SpeakIcon(state: SpeakState, modifier: Modifier) {
+    val tint = LocalContentColor.current
+    Canvas(modifier = modifier) {
+        when (state) {
+            SpeakState.READY -> drawSpeaker(tint)
+            SpeakState.LOADING -> drawClock(tint)
+            SpeakState.ERROR -> drawDot(tint)
+        }
+    }
+}
+
+/** Speaker source dot with three radiating sound waves. */
+private fun DrawScope.drawSpeaker(color: Color) {
+    val s = size.minDimension
+    val center = Offset(s * 0.30f, s * 0.5f)
+    drawCircle(color = color, radius = s * 0.10f, center = center)
+    val stroke = Stroke(width = s * 0.06f, cap = StrokeCap.Round)
+    for (i in 1..3) {
+        val r = s * (0.13f + i * 0.12f)
+        drawArc(
+            color = color,
+            startAngle = -50f,
+            sweepAngle = 100f,
+            useCenter = false,
+            topLeft = Offset(center.x - r, center.y - r),
+            size = Size(r * 2, r * 2),
+            style = stroke,
+        )
+    }
+}
+
+/** Clock face with two hands, shown while the engine is still loading. */
+private fun DrawScope.drawClock(color: Color) {
+    val s = size.minDimension
+    val center = Offset(s * 0.5f, s * 0.5f)
+    val r = s * 0.38f
+    val width = s * 0.06f
+    drawCircle(color = color, radius = r, center = center, style = Stroke(width = width))
+    drawLine(color, center, Offset(center.x, center.y - r * 0.55f), strokeWidth = width, cap = StrokeCap.Round)
+    drawLine(color, center, Offset(center.x + r * 0.42f, center.y), strokeWidth = width, cap = StrokeCap.Round)
+}
+
+/** A single thick dot, shown when TTS failed to initialise. */
+private fun DrawScope.drawDot(color: Color) {
+    drawCircle(color = color, radius = size.minDimension * 0.22f, center = center)
 }
 
 @Composable
