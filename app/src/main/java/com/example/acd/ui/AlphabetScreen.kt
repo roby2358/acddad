@@ -2,6 +2,7 @@ package com.example.acd.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -49,8 +50,9 @@ import com.example.acd.ui.theme.AcdTheme
 private const val KEYS_PER_ROW = 7
 private val GAP = 8.dp
 
-private val KEY_FONT = 40.sp       // multi-character labels (words, control keys)
-private val BIG_KEY_FONT = 70.sp   // single-character keys (letters, digits)
+private val KEY_FONT = 40.sp        // multi-character labels (words, control keys)
+private val BIG_KEY_FONT = 70.sp    // single-character keys (letters, digits)
+private val DIAGNOSTIC_FONT = 22.sp // diagnostic panel text
 
 private typealias KeyAction = (Phrase) -> Phrase
 
@@ -312,7 +314,7 @@ private fun DiagnosticPanel(entries: List<Pair<String, Int>>, onClearAll: () -> 
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(GAP),
         ) {
-            Text(text = "Clear all", fontSize = 22.sp)
+            Text(text = "Clear all", fontSize = DIAGNOSTIC_FONT)
         }
         LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(GAP)) {
             items(entries) { (word, count) ->
@@ -322,17 +324,17 @@ private fun DiagnosticPanel(entries: List<Pair<String, Int>>, onClearAll: () -> 
                         modifier = Modifier.width(64.dp),
                         textAlign = TextAlign.End,
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 22.sp,
+                        fontSize = DIAGNOSTIC_FONT,
                     )
                     Spacer(Modifier.width(16.dp))
-                    Text(text = word, fontFamily = FontFamily.Monospace, fontSize = 22.sp)
+                    Text(text = word, fontFamily = FontFamily.Monospace, fontSize = DIAGNOSTIC_FONT)
                 }
             }
         }
     }
 }
 
-/** Unlabeled vertical bar left of the keys; tapping it switches to the next panel. */
+/** Unlabeled vertical bar right of the keys; tapping it switches to the next panel. */
 @Composable
 private fun SwitcherBar(onClick: () -> Unit, modifier: Modifier) {
     Surface(
@@ -373,14 +375,8 @@ private fun WordsPanel(
 /** A row of learned-word keys; each reports the raw word so the screen can track the remove-streak. */
 @Composable
 private fun LearnedRow(words: List<String?>, onLearnedWord: (String) -> Unit, modifier: Modifier) {
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(GAP)) {
-        words.forEach { word ->
-            if (word == null) {
-                Spacer(Modifier.weight(1f).fillMaxHeight())
-            } else {
-                KeyButton(word, { onLearnedWord(word) }, Modifier.weight(1f).fillMaxHeight())
-            }
-        }
+    CellRow(words, modifier) { word ->
+        KeyButton(word, { onLearnedWord(word) }, Modifier.fillMaxSize())
     }
 }
 
@@ -404,12 +400,20 @@ private fun Keyboard(
 
 @Composable
 private fun KeyRow(keys: List<Key?>, onKeyPress: (Key) -> Unit, modifier: Modifier) {
+    CellRow(keys, modifier) { key ->
+        KeyButton(key.label, { onKeyPress(key) }, Modifier.fillMaxSize())
+    }
+}
+
+/** A row of equally-weighted cells; a null slot renders as an empty gap (keeps columns aligned). */
+@Composable
+private fun <T> CellRow(cells: List<T?>, modifier: Modifier, cell: @Composable (T) -> Unit) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(GAP)) {
-        keys.forEach { key ->
-            if (key == null) {
+        cells.forEach { item ->
+            if (item == null) {
                 Spacer(Modifier.weight(1f).fillMaxHeight())
             } else {
-                KeyButton(key.label, { onKeyPress(key) }, Modifier.weight(1f).fillMaxHeight())
+                Box(Modifier.weight(1f).fillMaxHeight()) { cell(item) }
             }
         }
     }
