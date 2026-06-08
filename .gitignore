@@ -1,0 +1,27 @@
+# Built application files
+/build
+/captures
+
+# Gradle
+.gradle
+
+# Kotlin build cache
+.kotlin
+
+# Machine-specific config (SDK path, etc.)
+local.properties
+
+# IDE — IntelliJ / Android Studio (machine-specific project files)
+*.iml
+/.idea/
+
+# Native build
+.externalNativeBuild
+.cxx
+
+# Signing keys — never commit these
+*.jks
+*.keystore
+
+# OS cruft
+.DS_Store
