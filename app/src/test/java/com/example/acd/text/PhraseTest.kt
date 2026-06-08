@@ -8,12 +8,32 @@ class PhraseTest {
 
     @Test
     fun append_addsLetterToEnd() {
-        assertEquals("CAT", Phrase("CA").append('T').text)
+        assertEquals("CAT", Phrase("CA").append("T").text)
     }
 
     @Test
     fun append_startingFromEmpty() {
-        assertEquals("A", Phrase.EMPTY.append('A').text)
+        assertEquals("A", Phrase.EMPTY.append("A").text)
+    }
+
+    @Test
+    fun append_addsWholeWord() {
+        assertEquals("YES", Phrase.EMPTY.append("YES").text)
+    }
+
+    @Test
+    fun appendWord_addsSeparatingSpaceWhenNeeded() {
+        assertEquals("WORLD YES", Phrase("WORLD").appendWord("YES").text)
+    }
+
+    @Test
+    fun appendWord_doesNotDoubleSpace() {
+        assertEquals("I AM YES", Phrase("I AM ").appendWord("YES").text)
+    }
+
+    @Test
+    fun appendWord_onEmpty_hasNoLeadingSpace() {
+        assertEquals("NO", Phrase.EMPTY.appendWord("NO").text)
     }
 
     @Test

@@ -27,10 +27,20 @@ import androidx.compose.ui.unit.sp
 import com.example.acd.text.Phrase
 import com.example.acd.ui.theme.AcdTheme
 
-private val DIGITS: List<Char> = ('0'..'9').toList()
-private val LETTERS: List<Char> = ('A'..'Z').toList()
 private const val KEYS_PER_ROW = 7
 private val GAP = 8.dp
+
+private typealias KeyAction = (Phrase) -> Phrase
+
+/** A tappable key: [label] is shown on the button, [apply] edits the phrase when pressed. */
+private data class Key(val label: String, val apply: KeyAction)
+
+private fun charKey(c: Char): Key = Key(c.toString()) { it.append(c.toString()) }
+private fun wordKey(word: String): Key = Key(word) { it.appendWord(word) }
+
+private val DIGIT_KEYS: List<Key> = ('0'..'9').map(::charKey)
+private val LETTER_KEYS: List<Key> = ('A'..'Z').map(::charKey)
+private val WORD_KEYS: List<Key> = listOf(wordKey("YES"), wordKey("NO"))
 
 private fun phraseSaver(): Saver<Phrase, String> = Saver(
     save = { it.text },
@@ -38,15 +48,16 @@ private fun phraseSaver(): Saver<Phrase, String> = Saver(
 )
 
 /**
- * A-Z split into rows of [KEYS_PER_ROW]. Short rows are left-aligned with blank
- * (null) slots padding the end, so every key lines up under the row above.
+ * Letter keys followed by the YES/NO word keys, split into rows of [KEYS_PER_ROW].
+ * Short rows are left-aligned with blank (null) slots padding the end, so every key
+ * lines up under the row above.
  */
-private fun letterRows(): List<List<Char?>> =
-    LETTERS.chunked(KEYS_PER_ROW).map { row -> padRowEnd(row, KEYS_PER_ROW) }
+private fun letterRows(): List<List<Key?>> =
+    (LETTER_KEYS + WORD_KEYS).chunked(KEYS_PER_ROW).map { row -> padRowEnd(row, KEYS_PER_ROW) }
 
-private fun padRowEnd(keys: List<Char>, width: Int): List<Char?> {
-    val blanks = width - keys.size
-    return keys + List<Char?>(blanks) { null }
+private fun <T> padRowEnd(items: List<T>, width: Int): List<T?> {
+    val blanks = width - items.size
+    return items + List<T?>(blanks) { null }
 }
 
 /**
@@ -63,7 +74,7 @@ fun AlphabetScreen(modifier: Modifier) {
     ) {
         WordDisplay(text = phrase.text, modifier = Modifier.fillMaxWidth().weight(1f))
         Keyboard(
-            onCharacter = { phrase = phrase.append(it) },
+            onKey = { action -> phrase = action(phrase) },
             onSpace = { phrase = phrase.space() },
             onBackspace = { phrase = phrase.backspace() },
             onClearWord = { phrase = phrase.clearWord() },
@@ -91,7 +102,7 @@ private fun WordDisplay(text: String, modifier: Modifier) {
 
 @Composable
 private fun Keyboard(
-    onCharacter: (Char) -> Unit,
+    onKey: (KeyAction) -> Unit,
     onSpace: () -> Unit,
     onBackspace: () -> Unit,
     onClearWord: () -> Unit,
@@ -100,21 +111,21 @@ private fun Keyboard(
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(GAP)) {
         ControlRow(onSpace, onBackspace, onClearWord, onClear, Modifier.fillMaxWidth().weight(1f))
-        KeyRow(DIGITS, onCharacter, Modifier.fillMaxWidth().weight(1f))
+        KeyRow(DIGIT_KEYS, onKey, Modifier.fillMaxWidth().weight(1f))
         letterRows().forEach { row ->
-            KeyRow(row, onCharacter, Modifier.fillMaxWidth().weight(1f))
+            KeyRow(row, onKey, Modifier.fillMaxWidth().weight(1f))
         }
     }
 }
 
 @Composable
-private fun KeyRow(keys: List<Char?>, onCharacter: (Char) -> Unit, modifier: Modifier) {
+private fun KeyRow(keys: List<Key?>, onKey: (KeyAction) -> Unit, modifier: Modifier) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(GAP)) {
         keys.forEach { key ->
             if (key == null) {
                 Spacer(Modifier.weight(1f).fillMaxHeight())
             } else {
-                KeyButton(key.toString(), { onCharacter(key) }, Modifier.weight(1f).fillMaxHeight())
+                KeyButton(key.label, { onKey(key.apply) }, Modifier.weight(1f).fillMaxHeight())
             }
         }
     }

@@ -9,7 +9,13 @@ package com.example.acd.text
  */
 data class Phrase(val text: String) {
 
-    fun append(letter: Char): Phrase = Phrase(text + letter)
+    fun append(insert: String): Phrase = Phrase(text + insert)
+
+    /** Appends a word, inserting a separating space unless the text is empty or already ends with one. */
+    fun appendWord(word: String): Phrase {
+        if (text.isEmpty() || text.endsWith(" ")) return append(word)
+        return Phrase("$text $word")
+    }
 
     fun space(): Phrase = Phrase("$text ")
 
