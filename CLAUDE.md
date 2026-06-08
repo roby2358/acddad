@@ -49,7 +49,11 @@ Run a single unit test class or method:
 
 Single-activity, 100% Kotlin + Jetpack Compose (no XML layouts, no Views/Fragments), Material 3.
 `MainActivity` sets content via `setContent { AcdTheme { Scaffold { AlphabetScreen(...) } } }`. The
-app is **locked to landscape** in `AndroidManifest.xml`.
+UI is **designed for landscape** (the Fire Max 11 is used mounted in landscape), but the activity is
+**not orientation-locked** — the weighted Compose layout reflows to fill whatever orientation the
+device is in, so portrait shows the same board squished tall rather than letterboxed into a band. (A
+hard landscape lock was dropped because Android 16 / targetSdk 36 ignores `screenOrientation` on
+large screens anyway; see git history.)
 
 The central design rule here is **separating pure, JVM-testable logic from Android framework code**,
 so the meaningful behavior is covered by fast unit tests in `app/src/test` (no instrumentation):
