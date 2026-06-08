@@ -51,15 +51,19 @@ private val GAP = 8.dp
 
 private typealias KeyAction = (Phrase) -> Phrase
 
-/** A tappable key: [label] is shown on the button, [apply] edits the phrase when pressed. */
-private data class Key(val label: String, val apply: KeyAction)
+/**
+ * A tappable key: [label] is shown on the button, [apply] edits the phrase, and [speaks] marks the
+ * quick-response keys (YES/NO) that also speak the word and line aloud immediately.
+ */
+private data class Key(val label: String, val apply: KeyAction, val speaks: Boolean)
 
-private fun charKey(c: Char): Key = Key(c.toString()) { it.append(c.toString()) }
-private fun wordKey(word: String): Key = Key(word) { it.appendWord(word) }
+private fun charKey(c: Char): Key = Key(c.toString(), { it.append(c.toString()) }, speaks = false)
+private fun wordKey(word: String): Key = Key(word, { it.appendWord(word) }, speaks = false)
+private fun spokenWordKey(word: String): Key = Key(word, { it.appendWord(word) }, speaks = true)
 
 private val DIGIT_KEYS: List<Key> = ('0'..'9').map(::charKey)
 private val LETTER_KEYS: List<Key> = ('A'..'Z').map(::charKey)
-private val WORD_KEYS: List<Key> = listOf(wordKey("YES"), wordKey("NO"))
+private val WORD_KEYS: List<Key> = listOf(spokenWordKey("YES"), spokenWordKey("NO"))
 
 private const val WORDS_PER_ROW = 4
 private const val LEARNED_SLOTS = 2 * WORDS_PER_ROW
@@ -123,15 +127,20 @@ fun AlphabetScreen(modifier: Modifier) {
     var streakCount by remember { mutableStateOf(0) }
     val resetStreak = { streakWord = null; streakCount = 0 }
 
-    val onKey: (KeyAction) -> Unit = { action ->
+    val applyEdit: (KeyAction) -> Unit = { action ->
         resetStreak()
-        val next = action(phrase)
+        phrase = action(phrase)
+    }
+    val onKeyPress: (Key) -> Unit = { key ->
+        resetStreak()
+        val next = key.apply(phrase)
         phrase = next
+        if (key.speaks) speaker.speak(key.label)
         if (next.text.endsWith(DIAGNOSTIC_TRIGGER)) panel = Panel.DIAGNOSTIC
     }
-    val onBackspace = { onKey(Phrase::backspace) }
-    val onClearWord = { onKey(Phrase::clearWord) }
-    val onClear = { onKey(Phrase::cleared) }
+    val onBackspace = { applyEdit(Phrase::backspace) }
+    val onClearWord = { applyEdit(Phrase::clearWord) }
+    val onClear = { applyEdit(Phrase::cleared) }
     val onSpace = {
         resetStreak()
         val spaced = phrase.space()
@@ -175,7 +184,7 @@ fun AlphabetScreen(modifier: Modifier) {
             val panelModifier = Modifier.weight(1f).fillMaxHeight()
             when (panel) {
                 Panel.ALPHABET -> Keyboard(
-                    onKey = onKey,
+                    onKeyPress = onKeyPress,
                     onSpace = onSpace,
                     onBackspace = onBackspace,
                     onClearWord = onClearWord,
@@ -183,7 +192,7 @@ fun AlphabetScreen(modifier: Modifier) {
                     modifier = panelModifier,
                 )
                 Panel.WORDS -> WordsPanel(
-                    onKey = onKey,
+                    onKeyPress = onKeyPress,
                     onLearnedWord = onLearnedWord,
                     onClearWord = onClearWord,
                     onClear = onClear,
@@ -334,7 +343,7 @@ private fun SwitcherBar(onClick: () -> Unit, modifier: Modifier) {
  */
 @Composable
 private fun WordsPanel(
-    onKey: (KeyAction) -> Unit,
+    onKeyPress: (Key) -> Unit,
     onLearnedWord: (String) -> Unit,
     onClearWord: () -> Unit,
     onClear: () -> Unit,
@@ -350,7 +359,7 @@ private fun WordsPanel(
             KeyButton("clear", onClear, Modifier.weight(1f).fillMaxHeight())
         }
         WORD_PANEL_KEYS.chunked(WORDS_PER_ROW).forEach { row ->
-            KeyRow(padRowEnd(row, WORDS_PER_ROW), onKey, Modifier.fillMaxWidth().weight(1f))
+            KeyRow(padRowEnd(row, WORDS_PER_ROW), onKeyPress, Modifier.fillMaxWidth().weight(1f))
         }
         val learnedSlots: List<String?> = List(LEARNED_SLOTS) { i -> learnedWords.getOrNull(i) }
         learnedSlots.chunked(WORDS_PER_ROW).forEach { row ->
@@ -375,7 +384,7 @@ private fun LearnedRow(words: List<String?>, onLearnedWord: (String) -> Unit, mo
 
 @Composable
 private fun Keyboard(
-    onKey: (KeyAction) -> Unit,
+    onKeyPress: (Key) -> Unit,
     onSpace: () -> Unit,
     onBackspace: () -> Unit,
     onClearWord: () -> Unit,
@@ -384,21 +393,21 @@ private fun Keyboard(
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(GAP)) {
         ControlRow(onSpace, onBackspace, onClearWord, onClear, Modifier.fillMaxWidth().weight(1f))
-        KeyRow(DIGIT_KEYS, onKey, Modifier.fillMaxWidth().weight(1f))
+        KeyRow(DIGIT_KEYS, onKeyPress, Modifier.fillMaxWidth().weight(1f))
         letterRows().forEach { row ->
-            KeyRow(row, onKey, Modifier.fillMaxWidth().weight(1f))
+            KeyRow(row, onKeyPress, Modifier.fillMaxWidth().weight(1f))
         }
     }
 }
 
 @Composable
-private fun KeyRow(keys: List<Key?>, onKey: (KeyAction) -> Unit, modifier: Modifier) {
+private fun KeyRow(keys: List<Key?>, onKeyPress: (Key) -> Unit, modifier: Modifier) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(GAP)) {
         keys.forEach { key ->
             if (key == null) {
                 Spacer(Modifier.weight(1f).fillMaxHeight())
             } else {
-                KeyButton(key.label, { onKey(key.apply) }, Modifier.weight(1f).fillMaxHeight())
+                KeyButton(key.label, { onKeyPress(key) }, Modifier.weight(1f).fillMaxHeight())
             }
         }
     }
