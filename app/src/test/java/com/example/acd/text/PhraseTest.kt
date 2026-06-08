@@ -37,8 +37,18 @@ class PhraseTest {
     }
 
     @Test
-    fun space_addsTrailingSpace() {
+    fun space_addsSingleTrailingSpace() {
         assertEquals("HI ", Phrase("HI").space().text)
+    }
+
+    @Test
+    fun space_onEmpty_doesNothing() {
+        assertSame(Phrase.EMPTY, Phrase.EMPTY.space())
+    }
+
+    @Test
+    fun space_whenAlreadyEndsWithSpace_doesNothing() {
+        assertEquals("HI ", Phrase("HI ").space().text)
     }
 
     @Test

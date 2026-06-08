@@ -17,7 +17,12 @@ data class Phrase(val text: String) {
         return Phrase("$text $word")
     }
 
-    fun space(): Phrase = Phrase("$text ")
+    /** Adds a single space, but never a leading or doubled one. */
+    fun space(): Phrase {
+        if (text.isEmpty()) return this
+        if (text.endsWith(" ")) return this
+        return Phrase("$text ")
+    }
 
     fun backspace(): Phrase {
         if (text.isEmpty()) return this
