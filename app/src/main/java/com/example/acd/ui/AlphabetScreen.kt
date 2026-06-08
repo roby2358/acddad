@@ -50,7 +50,7 @@ private const val KEYS_PER_ROW = 7
 private val GAP = 8.dp
 
 private val KEY_FONT = 40.sp       // multi-character labels (words, control keys)
-private val BIG_KEY_FONT = 60.sp   // single-character keys (letters, digits)
+private val BIG_KEY_FONT = 70.sp   // single-character keys (letters, digits)
 
 private typealias KeyAction = (Phrase) -> Phrase
 
