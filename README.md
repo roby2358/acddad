@@ -16,30 +16,37 @@ shown on a word display area as they build up.
   than typing speed.
 - Layout: alphabet keys dominate the screen, with a word/phrase display above
   them.
-- A screen-select bar lets the user switch between screens (e.g. alphabet,
-  and other screens to be defined).
+- A screen-select bar (a vertical bar on the right) switches between the
+  letters and words screens.
 
 ## Features
 
 - **Alphabet entry** *(built)* — the main screen is a grid of large letter keys
   (A–Z) plus a number row (0–9).
 - **Word display** *(built)* — characters appear in a display area as they are
-  tapped, building into words and phrases.
-- **Quick responses** *(built)* — YES / NO keys that insert whole words, adding
-  a separating space when needed.
-- **Editing controls** *(built)* — space, backspace, clear-word (back to the
-  previous space), and clear.
+  tapped, building into words and phrases, with a trailing `_` cursor marking the
+  end of the line.
+- **Quick responses** *(built)* — YES / NO keys that insert the word (with smart
+  spacing) and speak it aloud immediately.
+- **Editing controls** *(built)* — space (no leading/double spaces), backspace,
+  clear-word (back to the previous space), and clear; shared across both screens.
+- **Words screen** *(built)* — whole-word keys: common hospital/AAC words plus two
+  rows of the user's most-used words, learned automatically and saved across
+  sessions (tap a learned word 5× in a row to drop it).
+- **Screen switcher** *(built)* — a vertical bar switches between the letters and
+  words screens.
 - **Local text-to-speech** *(built)* — a Speak button reads the displayed text
   aloud using on-device TTS, so it works without a network; it prefers a male
   voice.
-- **Screen switcher** *(planned)* — a persistent bar for moving between screens.
-  The app is currently single-screen.
+- **Diagnostic panel** *(built, hidden)* — typing `UUUUU` reveals a frequency table
+  of learned words with a "clear all".
 
 ## Status
 
-In active development. The alphabet-entry screen with TTS is working; targeting
-the Fire Max 11 (landscape). Built with Kotlin + Jetpack Compose; see `CLAUDE.md`
-for architecture and build/test notes.
+In active development. The letters and words screens — with learned-word
+prediction and on-device TTS — are working; targeting the Fire Max 11 (landscape).
+Built with Kotlin + Jetpack Compose. See `USAGE.md` for the controls and
+`CLAUDE.md` for architecture and build/test notes.
 
 ## License
 

@@ -10,9 +10,14 @@ screen. See `README.md` for product intent. The target user can spell but strugg
 speech, so the UI prioritizes **large, tap-accurate buttons** and minimal cognitive load over typing
 speed.
 
-Built so far: the alphabet-entry screen (word display + 0–9 and A–Z key grid), YES/NO quick-response
-keys, space / backspace / clear-word / clear controls, and a Speak button using on-device TTS. Not
-yet built: the persistent screen-switcher bar (the app is currently single-screen).
+Built so far: two input panels switched by a vertical bar on the right — an **alphabet panel**
+(0–9 + A–Z, with YES/NO quick-response keys) and a **words panel** (fixed hospital/AAC words plus
+two rows of auto-learned most-used words). Both share a top control row (space / backspace /
+clear-word / clear). A square **Speak** button reads the line via on-device TTS, YES/NO also speak
+on tap, and a hidden **diagnostic panel** (type `UUUUU`) shows the learned-word frequency table.
+
+`USAGE.md` documents the controls from the user's point of view — keep it in sync when behavior
+changes.
 
 ## Build & test
 
@@ -57,22 +62,38 @@ so the meaningful behavior is covered by fast unit tests in `app/src/test` (no i
   to the composition. The two decisions worth testing are extracted as **pure top-level functions** —
   `resolveSpeakState(...)` and `pickMaleVoiceName(...)` — and the thin Android glue calls them. Tested
   by `SpeakStateTest` and `VoiceSelectionTest`.
+- **`tally/WordTally.kt`** — immutable frequency map of words the user speaks or completes with a
+  space. Matching is **length-aware fuzzy** (`editDistance` + `maxEditsForLength`: budget grows with
+  word length, so long-word typos merge but short distinct words don't). `top(n, excluding)` ranks
+  for the learned rows; `ranked()` feeds the diagnostic panel; `without` removes one word. All pure,
+  tested by `WordTallyTest`.
+- **`tally/WordMemory.kt`** — the Android-bound glue: holds the `WordTally` as observable state and
+  **persists it in SharedPreferences** across launches. `rememberWordMemory()` loads on entry.
 - **`ui/AlphabetScreen.kt`** — the whole UI. `AlphabetScreen` owns the `Phrase` state (via
-  `rememberSaveable` + a `Saver`, so it survives rotation/process death) and the `Speaker`.
+  `rememberSaveable` + a `Saver`, survives rotation/process death), the current `Panel`, the
+  `Speaker`, and the `WordMemory`. Panels: `ALPHABET`, `WORDS`, and a hidden `DIAGNOSTIC` that is
+  excluded from the switcher's normal cycle and reached only by typing `DIAGNOSTIC_TRIGGER` (`UUUUU`).
 
-Two UI patterns to preserve when extending:
+UI patterns to preserve when extending:
 
-- **Keys carry their own action, not a type tag.** A `Key` is `(label, apply: KeyAction)` where
-  `KeyAction = (Phrase) -> Phrase`. Letter/digit keys append a character; word keys (YES/NO) use
-  `Phrase.appendWord` (which inserts a separating space when needed). The keyboard just runs
-  `key.apply` — there is **no branching on "is this a letter vs a word"**. Add new keys by
-  constructing `Key`s with the right action, not by adding conditionals.
+- **Keys carry their own action, not a type tag.** A `Key` is `(label, apply: KeyAction, speaks)`
+  where `KeyAction = (Phrase) -> Phrase`. Letter/digit keys append a character; word keys use
+  `Phrase.appendWord` (separating space when needed). All key taps funnel through one handler
+  (`onKeyPress`), which runs `key.apply` and — only for keys with `speaks` set (YES/NO) — also speaks
+  the label. Add new keys by constructing `Key`s, not by adding conditionals; the single `speaks`
+  flag and the diagnostic-trigger check are the only per-tap branches, both at that one point.
+- **Tally events live at the screen, not the keys.** A spoken line (Speak button) records every word;
+  a real space records the just-completed word. YES/NO speaking deliberately does **not** tally.
+  Learned rows exclude `SCREEN_WORDS` (the fixed words + YES/NO) so nothing shows twice, and tapping
+  a learned word `LEARNED_REMOVE_TAPS` (5) times in a row `forget`s it.
 - **TTS has no gender API**, so a male voice is chosen by name in `pickMaleVoiceName` (explicit "male"
   marker, else known male Google en-US ids `en-us-x-iom` / `en-us-x-tpd`), falling back to the default
   voice. Google voice ids won't exist on the Fire's Amazon engine — revisit voice names when testing
   on-device. See README "References".
-- The Speak button's three states render as **custom Canvas glyphs** (`drawSpeaker` / `drawClock` /
-  `drawDot`) rather than pulling in `material-icons-extended`.
+- **No icon-font dependency:** the Speak button's three states and the word-display end-of-line `_`
+  cursor are drawn/typed directly (custom Canvas glyphs `drawSpeaker`/`drawClock`/`drawDot`; the `_`
+  is appended display-only so it's never spoken or tallied). Key font sizes are constants
+  (`KEY_FONT`, `BIG_KEY_FONT` for single-character keys).
 
 ## Conventions
 
