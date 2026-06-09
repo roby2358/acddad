@@ -29,9 +29,13 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -259,31 +263,37 @@ private fun SpeakIcon(state: SpeakState, modifier: Modifier) {
     val tint = LocalContentColor.current
     Canvas(modifier = modifier) {
         when (state) {
-            SpeakState.READY -> drawSpeaker(tint)
+            SpeakState.READY -> drawSpeechBubble(tint)
             SpeakState.LOADING -> drawClock(tint)
             SpeakState.ERROR -> drawDot(tint)
         }
     }
 }
 
-/** Speaker source dot with three radiating sound waves. */
-private fun DrawScope.drawSpeaker(color: Color) {
-    val s = size.minDimension
-    val center = Offset(s * 0.30f, s * 0.5f)
-    drawCircle(color = color, radius = s * 0.10f, center = center)
-    val stroke = Stroke(width = s * 0.06f, cap = StrokeCap.Round)
-    for (i in 1..3) {
-        val r = s * (0.13f + i * 0.12f)
-        drawArc(
-            color = color,
-            startAngle = -50f,
-            sweepAngle = 100f,
-            useCenter = false,
-            topLeft = Offset(center.x - r, center.y - r),
-            size = Size(r * 2, r * 2),
-            style = stroke,
-        )
+/**
+ * Speech bubble matching the launcher icon: a rounded bubble with a down-left tail and three
+ * dots cut out (even-odd fill, so the button colour shows through the dots). Drawn in the icon's
+ * 108-unit space, scaled to fill ~92% of the glyph and centred.
+ */
+private fun DrawScope.drawSpeechBubble(color: Color) {
+    val k = size.minDimension * 0.92f / 50f          // bubble bbox (~50 units) → ~92% of the glyph
+    fun px(vx: Float) = center.x + (vx - 55f) * k     // icon x ∈ [30,80], centred on 55
+    fun py(vy: Float) = center.y + (vy - 56.5f) * k   // icon y ∈ [32,81], centred on 56.5
+    fun dot(cx: Float) = Rect(px(cx - 4.5f), py(50f - 4.5f), px(cx + 4.5f), py(50f + 4.5f))
+    val r = 11f * k
+
+    val path = Path().apply {
+        fillType = PathFillType.EvenOdd
+        addRoundRect(RoundRect(px(30f), py(32f), px(80f), py(70f), CornerRadius(r, r)))
+        moveTo(px(54f), py(70f))                       // tail: notch below the bottom edge
+        lineTo(px(40f), py(81f))
+        lineTo(px(44f), py(70f))
+        close()
+        addOval(dot(44f))
+        addOval(dot(55f))
+        addOval(dot(66f))
     }
+    drawPath(path, color = color)
 }
 
 /** Clock face with two hands, shown while the engine is still loading. */
