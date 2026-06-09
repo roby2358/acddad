@@ -1,7 +1,7 @@
 # Using ACD
 
 ACD is a tap-to-talk board. You build a line of text with big buttons, and the
-tablet can speak it aloud. It's designed for a Kindle Fire held in landscape.
+tablet can speak it aloud. It's designed for a Samsung tablet held in landscape.
 
 ## The screen
 

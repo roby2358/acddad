@@ -1,6 +1,6 @@
 # ACD — Assistive Communication Device
 
-A Kindle Fire app to help a stroke patient with expressive aphasia communicate
+A Samsung tablet app to help a stroke patient with expressive aphasia communicate
 by spelling out words and phrases on screen.
 
 ## Purpose
@@ -11,7 +11,7 @@ shown on a word display area as they build up.
 
 ## Form factor
 
-- Target device: Kindle Fire (tablet, landscape).
+- Target device: Samsung tablet (landscape).
 - Primary input: large on-screen buttons, designed for tap accuracy rather
   than typing speed.
 - Layout: alphabet keys dominate the screen, with a word/phrase display above
@@ -44,7 +44,7 @@ shown on a word display area as they build up.
 ## Status
 
 In active development. The letters and words screens — with learned-word
-prediction and on-device TTS — are working; targeting the Fire Max 11 (landscape).
+prediction and on-device TTS — are working; targeting a Samsung tablet (landscape).
 Built with Kotlin + Jetpack Compose. See `USAGE.md` for the controls and
 `CLAUDE.md` for architecture and build/test notes.
 

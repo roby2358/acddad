@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-ACD ("Assistive Communication Device") is an Android app for a **Kindle Fire (Fire Max 11) tablet in
+ACD ("Assistive Communication Device") is an Android app for a **Samsung tablet in
 landscape**, helping a stroke patient with expressive aphasia communicate by spelling words on
 screen. See `README.md` for product intent. The target user can spell but struggles to produce
 speech, so the UI prioritizes **large, tap-accurate buttons** and minimal cognitive load over typing
@@ -49,7 +49,7 @@ Run a single unit test class or method:
 
 Single-activity, 100% Kotlin + Jetpack Compose (no XML layouts, no Views/Fragments), Material 3.
 `MainActivity` sets content via `setContent { AcdTheme { Scaffold { AlphabetScreen(...) } } }`. The
-UI is **designed for landscape** (the Fire Max 11 is used mounted in landscape), but the activity is
+UI is **designed for landscape** (the tablet is used mounted in landscape), but the activity is
 **not orientation-locked** — the weighted Compose layout reflows to fill whatever orientation the
 device is in, so portrait shows the same board squished tall rather than letterboxed into a band. (A
 hard landscape lock was dropped because Android 16 / targetSdk 36 ignores `screenOrientation` on
@@ -92,8 +92,9 @@ UI patterns to preserve when extending:
   a learned word `LEARNED_REMOVE_TAPS` (5) times in a row `forget`s it.
 - **TTS has no gender API**, so a male voice is chosen by name in `pickMaleVoiceName` (explicit "male"
   marker, else known male Google en-US ids `en-us-x-iom` / `en-us-x-tpd`), falling back to the default
-  voice. Google voice ids won't exist on the Fire's Amazon engine — revisit voice names when testing
-  on-device. See README "References".
+  voice. The Samsung tablet ships Google TTS, so these en-US ids resolve (unlike the Fire's Amazon
+  engine) — **confirmed working: a male voice plays on-device** (Galaxy Tab A11+, Speech Services by
+  Google as the preferred engine). See README "References".
 - **No icon-font dependency:** the Speak button's three states and the word-display end-of-line `_`
   cursor are drawn/typed directly (custom Canvas glyphs `drawSpeaker`/`drawClock`/`drawDot`; the `_`
   is appended display-only so it's never spoken or tallied). Key font sizes are constants
